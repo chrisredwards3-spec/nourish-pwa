@@ -103,7 +103,7 @@ h3 { font-size: 1rem; }
   background: var(--blush);
   border: 1px solid var(--divider);
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 1rem;   /* ≥16px or iOS Safari auto-zooms on focus */
   outline: none;
 }
 .search-input:focus { border-color: var(--rust); }
@@ -693,7 +693,7 @@ h3 { font-size: 1rem; }
   border-radius: 10px;
   background: var(--parchment);
   margin-bottom: 16px;
-  font-size: 0.9rem;
+  font-size: 1rem;   /* ≥16px or iOS Safari auto-zooms on focus */
 }
 .onboarding-field:focus { outline: none; border-color: var(--rust); }
 .onboarding-next-btn {

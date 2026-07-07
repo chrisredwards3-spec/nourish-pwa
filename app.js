@@ -857,7 +857,7 @@ function renderSettings() {
       <div class="settings-group-title">Cycle start date</div>
       <div class="settings-row">
         <span class="settings-row-label">Started</span>
-        <input type="date" id="settings-date" value="${settings.startDate}" style="border:none;background:none;color:var(--rust)">
+        <input type="date" id="settings-date" value="${settings.startDate}" style="border:none;background:none;color:var(--rust);font-size:16px">
       </div>
       ${settings.cycle > 0 ? `
         <div class="settings-row">
