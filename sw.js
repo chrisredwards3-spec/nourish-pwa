@@ -1,4 +1,4 @@
-const CACHE = 'nourish-v1';
+const CACHE = 'nourish-v2';
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/data.js', '/manifest.json'];
 
 self.addEventListener('install', e => {

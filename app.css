@@ -320,19 +320,28 @@ h3 { font-size: 1rem; }
 .drawer-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(90,74,44,0.35);
+  z-index: 1;
+  background: rgba(90,74,44,0.08);
 }
 .drawer-sheet {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 2;
   max-height: 90dvh;
   background: var(--cream);
   border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--divider);
+  box-shadow: 0 -8px 32px rgba(90,74,44,0.25);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.drawer.open .drawer-sheet { animation: sheet-up 0.25s ease-out; }
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 .drawer-handle {
   flex-shrink: 0;
@@ -439,20 +448,25 @@ h3 { font-size: 1rem; }
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(90,74,44,0.4);
+  z-index: 1;
+  background: rgba(90,74,44,0.08);
 }
 .modal-sheet {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+  z-index: 2;
   max-height: 92dvh;
   background: var(--cream);
   border-radius: 20px 20px 0 0;
+  border-top: 1px solid var(--divider);
+  box-shadow: 0 -8px 32px rgba(90,74,44,0.25);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
+.modal.open .modal-sheet { animation: sheet-up 0.25s ease-out; }
 .modal-header {
   flex-shrink: 0;
   display: flex;
