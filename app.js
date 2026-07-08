@@ -261,6 +261,7 @@ function renderWeek() {
       </div>`;
   }
 
+  if (custom) html += '<button class="settings-btn" id="week-randomise">🎲 Randomise week</button>';
   html += '<button class="shopping-btn" id="week-shopping-btn">Shopping list for this week</button>';
 
   const el = $('#week-content');
@@ -274,6 +275,16 @@ function renderWeek() {
       return;
     }
     if (e.target.closest('#week-shopping-btn')) { openShopping(settings.cycle, week); return; }
+
+    if (e.target.closest('#week-randomise')) {
+      const hasEntries = Object.values(settings.customWeekEntries).some(d => Object.keys(d).length);
+      if (hasEntries && !confirm('Replace your current custom week with a random one?')) return;
+      randomiseCustomWeek();
+      saveSettings();
+      renderWeek();
+      renderToday();
+      return;
+    }
 
     const header = e.target.closest('.day-row-header');
     if (header) { header.parentElement.classList.toggle('open'); return; }
