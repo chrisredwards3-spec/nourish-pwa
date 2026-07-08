@@ -261,7 +261,11 @@ function renderWeek() {
       </div>`;
   }
 
-  if (custom) html += '<button class="settings-btn" id="week-randomise">🎲 Randomise week</button>';
+  if (custom) {
+    html += `
+      <button class="settings-btn" id="week-randomise">🎲 Randomise week</button>
+      <button class="settings-btn" id="week-clear">Clear week</button>`;
+  }
   html += '<button class="shopping-btn" id="week-shopping-btn">Shopping list for this week</button>';
 
   const el = $('#week-content');
@@ -280,6 +284,16 @@ function renderWeek() {
       const hasEntries = Object.values(settings.customWeekEntries).some(d => Object.keys(d).length);
       if (hasEntries && !confirm('Replace your current custom week with a random one?')) return;
       randomiseCustomWeek();
+      saveSettings();
+      renderWeek();
+      renderToday();
+      return;
+    }
+
+    if (e.target.closest('#week-clear')) {
+      const hasEntries = Object.values(settings.customWeekEntries).some(d => Object.keys(d).length);
+      if (hasEntries && !confirm('Clear all meals from your custom week?')) return;
+      settings.customWeekEntries = {};
       saveSettings();
       renderWeek();
       renderToday();
