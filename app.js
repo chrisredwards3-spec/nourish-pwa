@@ -132,6 +132,7 @@ function slotBadge(slot) {
 
 function tagChips(r) {
   const chips = [];
+  if (r.mealTypes.includes('refuel')) chips.push('<span class="tag tag-refuel">Refuel</span>');
   if (r.free) chips.push('<span class="tag tag-free">Naturally free</span>');
   if (r.tags.includes('batch'))  chips.push('<span class="tag tag-batch">Batch</span>');
   if (r.tags.includes('quick'))  chips.push('<span class="tag tag-quick">Quick</span>');
@@ -436,7 +437,10 @@ function openChooser(dayKey, slotType) {
   html += pool.map(r => `
     <div class="card card-tap${r.id === current ? '' : ''}" data-choose="${r.id}">
       <div class="recipe-card-name">${r.id === current ? '✓ ' : ''}${esc(r.name)}</div>
-      <div class="recipe-card-meta"><span>⏱ ${totalTime(r)} min</span><span>Cycle ${r.cycle}</span></div>
+      <div class="recipe-card-meta">
+        <span>⏱ ${totalTime(r)} min</span><span>Cycle ${r.cycle}</span>
+        ${r.mealTypes.includes('refuel') ? '<span class="tag tag-refuel">Refuel</span>' : ''}
+      </div>
     </div>`).join('');
 
   openDrawer(html);

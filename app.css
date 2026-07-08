@@ -163,6 +163,7 @@ h3 { font-size: 1rem; }
 .tag-quick { background: #f0ebe4; color: var(--ink); }
 .tag-family{ background: #f5eef8; color: #6c3483; }
 .tag-gf    { background: #fff3cd; color: #856404; border: 1px solid var(--gf-warn); }
+.tag-refuel{ background: #fdebd0; color: #8b5e00; }
 
 /* ── Today view ─────────────────────────────────────────── */
 .today-day-type {
