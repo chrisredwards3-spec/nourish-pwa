@@ -297,6 +297,36 @@ h3 { font-size: 1rem; }
   cursor: pointer;
 }
 .day-meal-line:last-child { border-bottom: none; }
+
+/* Larger tap target for the custom-week edit affordance */
+.meal-edit { color: var(--caramel); font-size: 1rem; padding: 0 6px 6px 12px; margin: -2px 0; }
+
+/* Swipe-left-to-clear (filled custom-week rows) */
+.day-meal-line.swipeable { position: relative; overflow: hidden; padding: 0; }
+.day-meal-swipe {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 5px 0;
+  width: 100%;
+  background: var(--cream);
+  position: relative;
+  transition: transform 0.2s ease;
+}
+.swipe-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .day-meal-type {
   font-size: 0.65rem;
   font-weight: 600;
@@ -362,6 +392,7 @@ h3 { font-size: 1rem; }
 .recipe-detail-name { font-size: 1.4rem; margin-bottom: 4px; }
 .recipe-detail-meta { font-size: 0.8rem; color: var(--rust); display: flex; gap: 12px; margin-bottom: 12px; }
 .recipe-detail-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.drawer-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px; }
 
 .recipe-section-title {
   font-size: 0.7rem;

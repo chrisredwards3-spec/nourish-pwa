@@ -236,15 +236,22 @@ function renderWeek() {
         <div class="day-row-meals">
           ${d.slots.map(slot => {
             const r = slot.recipeId ? RECIPE_BY_ID[slot.recipeId] : null;
-            return `
-              <div class="day-meal-line" data-slot="${slot.type}" data-id="${esc(slot.recipeId || '')}">
-                <span class="day-meal-type">${SLOT_SHORT[slot.type]}</span>
-                <span class="day-meal-name">
-                  ${r ? esc(r.name) : '<span class="text-muted">Tap to choose…</span>'}
-                  ${slot.isBatch ? `<div class="day-meal-batch">Batch — cooked ${DAY_SHORT[slot.batchFrom]}</div>` : ''}
-                </span>
-                ${custom ? '<span class="text-muted" data-swap="1">✎</span>' : ''}
-              </div>`;
+            const inner = `
+              <span class="day-meal-type">${SLOT_SHORT[slot.type]}</span>
+              <span class="day-meal-name">
+                ${r ? esc(r.name) : '<span class="text-muted">Tap to choose…</span>'}
+                ${slot.isBatch ? `<div class="day-meal-batch">Batch — cooked ${DAY_SHORT[slot.batchFrom]}</div>` : ''}
+              </span>
+              ${custom ? '<span class="meal-edit" data-swap="1">✎</span>' : ''}`;
+            // Filled custom-week slots get swipe-left-to-clear
+            if (custom && r) {
+              return `
+                <div class="day-meal-line swipeable" data-slot="${slot.type}" data-id="${esc(slot.recipeId)}">
+                  <button class="swipe-clear" data-clear="1">Clear</button>
+                  <div class="day-meal-swipe">${inner}</div>
+                </div>`;
+            }
+            return `<div class="day-meal-line" data-slot="${slot.type}" data-id="${esc(slot.recipeId || '')}">${inner}</div>`;
           }).join('')}
           <div class="day-meal-line" style="cursor:default">
             <span class="day-meal-type">Snacks</span>
@@ -258,6 +265,7 @@ function renderWeek() {
 
   const el = $('#week-content');
   el.innerHTML = html;
+  initWeekSwipe(el);
   el.onclick = e => {
     const nav = e.target.closest('[data-nav]');
     if (nav) {
@@ -270,13 +278,74 @@ function renderWeek() {
     const header = e.target.closest('.day-row-header');
     if (header) { header.parentElement.classList.toggle('open'); return; }
 
+    const clearBtn = e.target.closest('[data-clear]');
+    if (clearBtn) {
+      const line = clearBtn.closest('.day-meal-line');
+      const dayKey = line.closest('.day-row').dataset.day;
+      const entry = settings.customWeekEntries[dayKey] || {};
+      delete entry[line.dataset.slot];
+      settings.customWeekEntries[dayKey] = entry;
+      saveSettings();
+      renderWeek();
+      renderToday();
+      return;
+    }
+
     const line = e.target.closest('.day-meal-line[data-slot]');
     if (line) {
+      if (line.classList.contains('swiped')) { closeSwipe(line); return; }
       const dayKey = line.closest('.day-row').dataset.day;
       if (e.target.closest('[data-swap]') || !line.dataset.id) openChooser(dayKey, line.dataset.slot);
       else openRecipeDrawer(line.dataset.id);
     }
   };
+}
+
+/* Swipe-left on a filled custom-week row reveals its Clear button */
+
+function closeSwipe(line) {
+  line.classList.remove('swiped');
+  line.querySelector('.day-meal-swipe').style.transform = '';
+}
+
+let weekSwipeInit = false;
+
+function initWeekSwipe(el) {
+  if (weekSwipeInit) return;
+  weekSwipeInit = true;
+
+  let line = null, sw = null, startX = 0, startY = 0, dx = 0, horiz = null, wasOpen = false;
+
+  el.addEventListener('touchstart', e => {
+    line = e.target.closest('.swipeable');
+    el.querySelectorAll('.swipeable.swiped').forEach(l => { if (l !== line) closeSwipe(l); });
+    if (!line) return;
+    sw = line.querySelector('.day-meal-swipe');
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dx = 0; horiz = null;
+    wasOpen = line.classList.contains('swiped');
+    sw.style.transition = 'none';
+  }, { passive: true });
+
+  el.addEventListener('touchmove', e => {
+    if (!line) return;
+    const mx = e.touches[0].clientX - startX;
+    const my = e.touches[0].clientY - startY;
+    if (horiz === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) horiz = Math.abs(mx) > Math.abs(my);
+    if (!horiz) return;
+    dx = Math.min(0, Math.max(-96, (wasOpen ? -80 : 0) + mx));
+    sw.style.transform = `translateX(${dx}px)`;
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    if (!line) return;
+    sw.style.transition = '';
+    const open = wasOpen ? dx < -40 : dx < -32;
+    line.classList.toggle('swiped', open);
+    sw.style.transform = open ? 'translateX(-80px)' : '';
+    line = null;
+  });
 }
 
 /* ── Recipes view ──────────────────────────────────────── */
@@ -428,23 +497,46 @@ function openChooser(dayKey, slotType) {
     .sort((a, b) => a.cycle - b.cycle || a.name.localeCompare(b.name));
   const current = (settings.customWeekEntries[dayKey] || {})[slotType];
 
-  let html = `
-    <h2 class="recipe-detail-name">${DAY_NAMES[dayKey]} · ${SLOT_LABELS[slotType]}</h2>
-    <div class="recipe-detail-meta"><span>Choose a recipe</span></div>`;
-  if (current) {
-    html += '<button class="settings-btn" data-choose="">Clear this slot</button>';
-  }
-  html += pool.map(r => `
-    <div class="card card-tap${r.id === current ? '' : ''}" data-choose="${r.id}">
-      <div class="recipe-card-name">${r.id === current ? '✓ ' : ''}${esc(r.name)}</div>
-      <div class="recipe-card-meta">
-        <span>⏱ ${totalTime(r)} min</span><span>Cycle ${r.cycle}</span>
-        ${r.mealTypes.includes('refuel') ? '<span class="tag tag-refuel">Refuel</span>' : ''}
-      </div>
-    </div>`).join('');
+  const chips = [
+    ['all', 'All'],
+    ...(slotType === 'B' ? [] : [['refuel', 'Refuel']]),
+    ['quick', 'Quick'],
+    ['batch', 'Batch'],
+    ['c1', 'Cycle 1'], ['c2', 'Cycle 2'], ['c3', 'Cycle 3'],
+  ];
+  let filter = 'all';
+  const matches = r =>
+    filter === 'all'    ? true :
+    filter === 'refuel' ? r.mealTypes.includes('refuel') :
+    filter === 'quick'  ? r.tags.includes('quick') :
+    filter === 'batch'  ? r.tags.includes('batch') :
+    r.cycle === Number(filter.slice(1));
 
-  openDrawer(html);
+  const render = () => {
+    const list = pool.filter(matches);
+    $('#recipe-drawer-content').innerHTML = `
+      <h2 class="recipe-detail-name">${DAY_NAMES[dayKey]} · ${SLOT_LABELS[slotType]}</h2>
+      <div class="recipe-detail-meta"><span>Choose a recipe</span></div>
+      <div class="drawer-chips">
+        ${chips.map(([id, label]) =>
+          `<button class="filter-chip${id === filter ? ' active' : ''}" data-chip="${id}">${label}</button>`).join('')}
+      </div>
+      ${current ? '<button class="settings-btn" data-choose="">Clear this slot</button>' : ''}
+      ${list.map(r => `
+        <div class="card card-tap" data-choose="${r.id}">
+          <div class="recipe-card-name">${r.id === current ? '✓ ' : ''}${esc(r.name)}</div>
+          <div class="recipe-card-meta">
+            <span>⏱ ${totalTime(r)} min</span><span>Cycle ${r.cycle}</span>
+            ${r.mealTypes.includes('refuel') ? '<span class="tag tag-refuel">Refuel</span>' : ''}
+          </div>
+        </div>`).join('') || '<div class="empty-state"><p>No recipes match this filter.</p></div>'}`;
+  };
+
+  openDrawer('');
+  render();
   $('#recipe-drawer-content').onclick = e => {
+    const chip = e.target.closest('[data-chip]');
+    if (chip) { filter = chip.dataset.chip; render(); return; }
     const pick = e.target.closest('[data-choose]');
     if (!pick) return;
     const entry = settings.customWeekEntries[dayKey] || {};
