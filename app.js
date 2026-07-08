@@ -6,8 +6,9 @@
 const DAY_KEYS  = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const DAY_NAMES = { mon:'Monday', tue:'Tuesday', wed:'Wednesday', thu:'Thursday', fri:'Friday', sat:'Saturday', sun:'Sunday' };
 const DAY_SHORT = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' };
-const SLOT_LABELS = { B:'Breakfast', R:'Refuel (Lunch)', L:'Lunch', D:'Dinner' };
-const SLOT_SHORT  = { B:'Bfast', R:'Refuel', L:'Lunch', D:'Dinner' };
+// Plan data still uses R (refuel) slot keys — they render as plain Lunch
+const SLOT_LABELS = { B:'Breakfast', R:'Lunch', L:'Lunch', D:'Dinner' };
+const SLOT_SHORT  = { B:'Bfast', R:'Lunch', L:'Lunch', D:'Dinner' };
 const CYCLE_DAYS = 30;
 
 const RECIPE_BY_ID = {};
@@ -38,8 +39,7 @@ const DEFAULTS = {
   onboarded: false,
   cycle: 1,                                   // 1–3, or 0 = custom week
   startDate: new Date().toISOString().slice(0, 10),
-  trainingDays: ['mon', 'tue', 'thu', 'fri'],
-  customWeekEntries: {},                      // { mon: {B:'recipeId', R:'…', D:'…'}, … }
+  customWeekEntries: {},                      // { mon: {B:'recipeId', L:'…', D:'…'}, … }
 };
 
 let settings = loadSettings();
@@ -47,7 +47,13 @@ let settings = loadSettings();
 function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (raw && typeof raw === 'object') return Object.assign({}, DEFAULTS, raw);
+    if (raw && typeof raw === 'object') {
+      // Migrate custom-week entries saved when refuel was a slot type
+      for (const day of Object.values(raw.customWeekEntries || {})) {
+        if (day.R) { if (!day.L) day.L = day.R; delete day.R; }
+      }
+      return Object.assign({}, DEFAULTS, raw);
+    }
   } catch (e) { /* corrupted state — fall back to defaults */ }
   return Object.assign({}, DEFAULTS);
 }
@@ -55,8 +61,6 @@ function loadSettings() {
 function saveSettings() {
   localStorage.setItem(STORE_KEY, JSON.stringify(settings));
 }
-
-function isTrainingDay(dayKey) { return settings.trainingDays.includes(dayKey); }
 
 function daysIntoCycle() {
   const start = new Date(settings.startDate + 'T00:00:00');
@@ -82,9 +86,8 @@ function daySlots(planDay) {
 
 function customWeekDays() {
   return DAY_KEYS.map(day => {
-    const types = isTrainingDay(day) ? ['B', 'R', 'D'] : ['B', 'L', 'D'];
     const entry = settings.customWeekEntries[day] || {};
-    const slots = types.map(t => ({
+    const slots = ['B', 'L', 'D'].map(t => ({
       type:t, label:SLOT_LABELS[t], recipeId:entry[t] || null, isBatch:false, batchFrom:null,
     }));
     return { day, slots, snacks:'Mixed nuts · Fresh fruit' };
@@ -142,13 +145,12 @@ function tagChips(r) {
 
 function renderToday() {
   const day = todayKey();
-  const training = isTrainingDay(day);
   $('#today-date').textContent = fmtLongDate(new Date());
 
   const days = weekDays(settings.cycle, currentWeek());
   const dayPlan = days.find(d => d.day === day);
 
-  let html = `<span class="today-day-type ${training ? 'day-training' : 'day-rest'}">${training ? 'Training day' : 'Rest day'}</span>`;
+  let html = '';
 
   if (!dayPlan) {
     html += '<div class="empty-state"><h3>No plan for today</h3><p>Check your cycle in Settings.</p></div>';
@@ -223,13 +225,11 @@ function renderWeek() {
   }
 
   for (const d of days) {
-    const training = isTrainingDay(d.day);
     const isToday = d.day === today;
     html += `
       <div class="day-row${isToday ? ' open' : ''}" data-day="${d.day}">
         <div class="day-row-header">
           <span class="day-row-name">${DAY_NAMES[d.day]}${isToday ? ' · Today' : ''}</span>
-          <span class="day-row-type ${training ? 'day-training' : 'day-rest'}">${training ? 'Training' : 'Rest'}</span>
           <svg class="day-row-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <div class="day-row-meals">
@@ -417,7 +417,8 @@ function openRecipeDrawer(id) {
 
 /* ── Custom week recipe chooser ────────────────────────── */
 
-const CHOOSER_TYPES = { B:['breakfast'], R:['refuel'], L:['lunch', 'dinner'], D:['dinner', 'lunch'] };
+// Breakfast slots take breakfast recipes; lunch/dinner slots take anything else
+const CHOOSER_TYPES = { B:['breakfast'], R:['refuel', 'lunch', 'dinner'], L:['refuel', 'lunch', 'dinner'], D:['refuel', 'lunch', 'dinner'] };
 
 function openChooser(dayKey, slotType) {
   const wanted = CHOOSER_TYPES[slotType];
@@ -500,7 +501,7 @@ function renderBuild() {
       <button class="type-btn${!refuel ? ' active' : ''}" data-kind="general">🌿 General</button>
     </div>
     <p class="text-sm text-muted" style="margin:-8px 0 16px">
-      ${refuel ? 'Refuel meals include a carb — for training days.' : 'General meals include an additional fat instead of a carb.'}
+      ${refuel ? 'Refuel meals include a carb — great after a workout.' : 'General meals include an additional fat instead of a carb.'}
     </p>
 
     <div class="build-section">
@@ -868,15 +869,6 @@ function renderSettings() {
     </div>
 
     <div class="settings-group">
-      <div class="settings-group-title">Training days</div>
-      <div class="toggle-row">
-        ${DAY_KEYS.map(d => `
-          <button class="day-toggle${isTrainingDay(d) ? ' active' : ''}" data-day="${d}">${DAY_SHORT[d]}</button>`).join('')}
-      </div>
-      <p class="text-sm text-muted">Training days swap Lunch for a Refuel meal.</p>
-    </div>
-
-    <div class="settings-group">
       <div class="settings-group-title">Custom week</div>
       <button class="settings-btn" id="settings-randomise">Randomise custom week</button>
       <button class="settings-btn" id="settings-clear-custom">Clear custom week</button>
@@ -904,16 +896,6 @@ function renderSettings() {
       settings.cycle = Number(cycleRow.dataset.cycle);
       saveSettings();
       viewedWeek = null;
-      renderSettings();
-      return;
-    }
-    const dayBtn = e.target.closest('.day-toggle');
-    if (dayBtn) {
-      const d = dayBtn.dataset.day;
-      settings.trainingDays = isTrainingDay(d)
-        ? settings.trainingDays.filter(x => x !== d)
-        : [...settings.trainingDays, d];
-      saveSettings();
       renderSettings();
       return;
     }
@@ -961,11 +943,11 @@ function randomiseCustomWeek() {
   };
   const entries = {};
   for (const day of DAY_KEYS) {
-    const entry = { B: pick(['breakfast']) };
-    if (isTrainingDay(day)) entry.R = pick(['refuel']);
-    else entry.L = pick(['lunch', 'dinner']);
-    entry.D = pick(['dinner', 'lunch']);
-    entries[day] = entry;
+    entries[day] = {
+      B: pick(['breakfast']),
+      L: pick(['refuel', 'lunch', 'dinner']),
+      D: pick(['refuel', 'lunch', 'dinner']),
+    };
   }
   settings.customWeekEntries = entries;
 }
@@ -973,8 +955,6 @@ function randomiseCustomWeek() {
 /* ── Onboarding ────────────────────────────────────────── */
 
 function renderOnboarding() {
-  const ob = { cycle:1, trainingDays:['mon', 'tue', 'thu', 'fri'] };
-
   $('#onboarding-steps').innerHTML = `
     <div class="onboarding-label">Which cycle are you on?</div>
     <div id="ob-cycles">
@@ -989,27 +969,12 @@ function renderOnboarding() {
     </div>
     <div class="onboarding-label" style="margin-top:16px">When did this cycle start?</div>
     <input type="date" id="ob-date" class="onboarding-field" value="${new Date().toISOString().slice(0, 10)}">
-    <div class="onboarding-label">Which days do you train?</div>
-    <div class="toggle-row" id="ob-days">
-      ${DAY_KEYS.map(d => `
-        <button type="button" class="day-toggle${ob.trainingDays.includes(d) ? ' active' : ''}" data-day="${d}">${DAY_SHORT[d]}</button>`).join('')}
-    </div>
     <button class="onboarding-next-btn" id="ob-start">Let's go</button>`;
-
-  $('#ob-days').onclick = e => {
-    const btn = e.target.closest('.day-toggle');
-    if (!btn) return;
-    const d = btn.dataset.day;
-    if (ob.trainingDays.includes(d)) ob.trainingDays = ob.trainingDays.filter(x => x !== d);
-    else ob.trainingDays.push(d);
-    btn.classList.toggle('active');
-  };
 
   $('#ob-start').onclick = () => {
     const picked = document.querySelector('input[name="ob-cycle"]:checked');
     settings.cycle = picked ? Number(picked.value) : 1;
     settings.startDate = $('#ob-date').value || new Date().toISOString().slice(0, 10);
-    settings.trainingDays = [...ob.trainingDays];
     settings.onboarded = true;
     saveSettings();
     $('#onboarding').setAttribute('aria-hidden', 'true');
